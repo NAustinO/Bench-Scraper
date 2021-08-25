@@ -5,21 +5,28 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: Launch Scrapy Spider",
-      "type": "python",
-      "request": "launch",
-      "module": "scrapy", 
-      "args": ["runspider", "${file}"],
-      "console": "integratedTerminal"
-    },
-
-    {
       "name": "Python: Current File",
       "type": "python",
       "request": "launch",
       "program": "${file}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Scrapy Crawl Debug Deployer",
+      "type": "python",
+      "request": "launch",
+      "module": "scrapy",
+      "args": ["crawl", "times"],
       "console": "integratedTerminal",
-      "args": ["scrapy", "crawl", "times"]
+      "cwd": "${workspaceFolder}/crawlers"
+    },
+    {
+      "name": "Python: Launch Scrapy Spider",
+      "type": "python",
+      "request": "launch",
+      "module": "scrapy",
+      "args": ["runspider", "${file}"],
+      "console": "integratedTerminal"
     }
   ]
 }

@@ -6,7 +6,24 @@
 import scrapy
 
 
-class CrawlersItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+class Recipe(scrapy.Item):
+    url = scrapy.Field()
+    title = scrapy.Field()
+    author = scrapy.Field()
+    yields = scrapy.Field()
+    time = scrapy.Field()
+    intro = scrapy.Field()
+    tags = scrapy.Field()
+    ingredients = scrapy.Field()
+    steps = scrapy.Field()
+    date_scraped = scrapy.Field()
+    comments = scrapy.Field() # not used
+    collections = scrapy.Field() #TODO
+    filters = scrapy.Field() # TODO
+    
+
+    ##### required for images pipeline
+    image_urls = scrapy.Field()
+    images = scrapy.Field()
+    #####
+    

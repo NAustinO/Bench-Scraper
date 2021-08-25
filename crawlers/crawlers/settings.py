@@ -6,12 +6,22 @@
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+from pathlib import Path
+SCRAPY_ROOT_PATH = Path(__file__).parent.parent
+
 
 BOT_NAME = 'crawlers'
 
 SPIDER_MODULES = ['crawlers.spiders']
 NEWSPIDER_MODULE = 'crawlers.spiders'
 
+ITEM_PIPELINES = {
+    'scrapy.pipelines.images.ImagesPipeline': 1,
+    'crawlers.pipelines.RecipeExportPipeline': 200
+}
+#IMAGES_STORE = str(SCRAPY_ROOT_PATH) + "/data/images"
+IMAGES_STORE = "data/images"
+LOG_FILE = "data/scraping.log"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'crawlers (+http://www.yourdomain.com)'
