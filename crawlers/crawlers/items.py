@@ -18,7 +18,7 @@ class Recipe(scrapy.Item):
     steps = scrapy.Field()
     date_scraped = scrapy.Field()
     comments = scrapy.Field() # not used
-    collections = scrapy.Field() #TODO
+    collection_name = scrapy.Field() 
     filters = scrapy.Field() # TODO
     
 
@@ -27,3 +27,5 @@ class Recipe(scrapy.Item):
     images = scrapy.Field()
     #####
     
+
+#TODO Maybe make a recipe section class 

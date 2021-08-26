@@ -1,4 +1,5 @@
 import datetime
+from re import search
 import sys, os
 import scrapy
 from datetime import date
@@ -13,9 +14,6 @@ from scrapy.pipelines.images import ImagesPipeline
 from crawlers.items import Recipe
 from utils import get_image_urls
 
-
-
-
 class TimesSpider(scrapy.Spider):
 
     name = "times"
@@ -23,105 +21,47 @@ class TimesSpider(scrapy.Spider):
     path = Path(__file__)
     IMAGES_DIR_PATH = str(path.parents[2]) + "/data/images"
 
-    #start_urls = ["https://cooking.nytimes.com/recipes/4796-lemon-glazed-cardamom-pear-tea-bread"]
-
-    '''
+    #DEBUGGING 
     def start_requests(self):
-        pageUrls = []
+        yield scrapy.Request(url="https://cooking.nytimes.com/search?q=&page=1",callback=self.parse_search)
+    '''def start_requests(self):
+        """
+        This method gathers all the individual recipe urls for each search page and passes them to the prase method
+        """
+
+        valid_search_page_urls = self.get_search_page_urls()
         
-        pageNumber = 1
-
-        end_loop_trigger = 0 # stores the number of times the request url fails to return a valid page. 
-
-        # iterates over each page to get the page urls in a list
-        while True:
-            url = "https://cooking.nytimes.com/search?q=&page={}".format(pageNumber)
-
-            try:
-                #TODO find a way to identify if a page is a valid collection page vs a error handling page 
-
-                response = request.urlopen(url=url)
-            except URLError:
-                if end_loop_trigger >= 3:
-                    print("The last valid url page was " + url)
-                    break
-                else:
-                    end_loop_trigger += 1
-                    pageNumber += 1 
-                    
-            else:
-                print("Successfully reached url: {}".format(url))
-                end_loop_trigger = 0 
-                pageNumber += 1
-                pageUrls.append(url)
+        for url in valid_search_page_urls:
+            yield scrapy.Request(url=url, callback=self.parse_search)'''
 
 
-        for url in pageUrls:
-            yield scrapy.Request(url=url, callback=self.parse_page)
-    '''
-
-    def start_requests(self):
+    def parse_search(self, response):
         """
-        This method gathers all the urls for both recipes and recipe collections for all pages to be parsed further in  the parse_page method
+        This method serves as the callback for start_requests. This parses the response data of the search page urls. Given the response from the search page, it will find all urls that lead to either recipe cards, or recipe-collection cards.
+
+        If the url is a recipe card, it will be yielded as a request to self.parse with no metadata for the collection name
+        If the url is a recipe-collection card, the recipe card urls are further extracted from the page and yielded to the parse method with the collection name in the metadata 
         """
-        pageUrls = []
-        
-        pageNumber = 1
+        urls_on_search_page = list(response.css("article.card a.card-link:not(.card-recipe-info)::attr(href)").getall())
+        for url in urls_on_search_page:
+            full_url = "https://cooking.nytimes.com{}".format(url)
 
-        end_loop_trigger = 0 # stores the number of times the request url fails to return a valid page. 
+            if url.startswith("/recipes"): # if the url is for a recipe
+                yield scrapy.Request(url=full_url, callback=self.parse, encoding='utf-8')
 
-        # iterates over each page to get the page urls in a list
-        while True:
-            url = "https://cooking.nytimes.com/search?q=&page={}".format(pageNumber)
+            elif url[1].isdigit():  # if the url is for a recipe collection
+                collection_dict = self.get_urls_from_collection(full_url)
+                for k,v in collection_dict.items(): # k is the collection name, v is list of shortened urls for recipes 
+                    for url in v: 
+                        url_to_recipe = "https://cooking.nytimes.com{}".format(url)
+                        yield scrapy.Request(url=url_to_recipe, callback=self.parse, encoding="utf-8", meta={"collection": k})
 
-            try:
-                response = request.urlopen(url=url)
-            except URLError:
-                if end_loop_trigger >= 3:
-                    print("The last valid url page was " + url)
-                    break
-                else:
-                    end_loop_trigger += 1
-                    pageNumber += 1 
-                    
-            else:
-                print("Successfully reached url: {}".format(url))
-                end_loop_trigger = 0 
-                pageNumber += 1
-                pageUrls.append(url)
+            else: # Not sure when this would be the case 
+                pass
 
-        for url in pageUrls:
-            yield scrapy.Request(url=url, callback=self.parse_page)
 
-    def parse_page(self, response: Response):
-        """
-        This method takes the response for each url given from start_urls method and redirects them to the parse method if the response shows that it is a recipe, or recursively if the response indicaes that it is a recipe collection page 
-        """
-      
-        response_metadata = dict(response.cb_kwargs)
-
-        #if response_metadata.get("collection") is not None:
-
-        links_on_page = response.css("article.card a.card-link:not(.card-recipe-info)::attr(href)").getall()
-
-        for link in links_on_page:
-            if link.startswith("/recipes"): # if the link is a url for a recipe
-                yield scrapy.Request(url="https://cooking.nytimes.com{}".format(link), callback=self.parse, encoding='utf-8')
-                
-            elif link[1].isdigit(): # link is a url for a collection of recipes
-                collection_page = request.urlopen(url=link)
-                soup = BeautifulSoup(collection_page, "html.parser")
-                collection_name = soup.find("h1", attrs={"class":"name"}).string
-
-                collection_set = set()
-                collection_set.add(collection_name)
-                metadata = {
-                    "collection": collection_set
-                }
-                yield scrapy.Request(url="https://cooking.nytimes.com{}".format(link), callback=self.parse_page, encoding='utf-8', cb_kwargs=metadata)
-
-    
     def parse(self, response: http.TextResponse):
+
         print('Parsing page: ' + response.url)
         image_urls = []
         try:
@@ -129,10 +69,6 @@ class TimesSpider(scrapy.Spider):
         except KeyError:
             title_for_query = stringCleanup(response.css('h1.recipe-title::text').get())
             image_urls = get_image_urls(title_for_query, 1)
-            #response = request.urlopen("https://www.google.com/search?q={}&tbm=isch".format(title_for_query))
-           # print("Recipe had no image")
-            #image_urls = []
-            pass
         else:
             image_urls.append(imageURL)
 
@@ -148,9 +84,9 @@ class TimesSpider(scrapy.Spider):
             steps = response.css('.recipe-steps > li').getall()
             steps = [stringCleanup(item).replace('<li>', '').replace('</li>', '') for item in steps]
             ingredients = self.getRecipeParts(response)
-            date = datetime.datetime.today()
-    
-            recipe = Recipe(title=title, author=author, url=url, yields=yields, time=time, intro=intro, tags=tags, steps=steps, ingredients=ingredients, image_urls=image_urls, date_scraped=date)
+            collection_name = response.meta.get("collection") 
+           
+            recipe = Recipe(title=title, author=author, url=url, yields=yields, time=time, intro=intro, tags=tags, steps=steps, ingredients=ingredients, image_urls=image_urls, collection_name=collection_name)
         
             yield recipe
 
@@ -158,22 +94,87 @@ class TimesSpider(scrapy.Spider):
             print('An error occured')
             raise closespider("Ran into an exception: " + err)
 
+    def get_search_page_urls(self):
+        """
+        This method checks each increment of 1 @ https://cooking.nytimes.com/search?q=&page= and returns a list containing the urls as strings that are valid and able to be parsed further for recipe urls 
+        """
 
-    ''' Returns a dictionary containing the recipe parts broken down further into quantity and ingredient 
+        urls = [] 
+
+        skipped_urls = []
+
+        search_page_number = 1
+
+        end_loop_counter = 0 #stores the number of times the request url fails to return a valid page. Once it has reached 3, the loop will end 
+
+        while True:
+            page_url = "https://cooking.nytimes.com/search?q=&page={}".format(search_page_number)
+            try:
+                response = request.urlopen(url=page_url)
+            except URLError:
+                skipped_urls.append(page_url)
+                if end_loop_counter >= 3:
+                    print("The last valid url page was " + page_url)
+                    break
+                else:
+                    end_loop_counter += 1 
+                    search_page_number += 1
+            else:
+                print("Successfully reached url: {}".format(page_url))
+                end_loop_counter = 0 
+                search_page_number += 1
+                urls.append(page_url)
+
+        print("The skipped urls are: ")
+        print(*skipped_urls, sep=", ") # prints all the page numbers that were skipped for debugging 
+        return urls 
+
+    def get_urls_from_collection(self, collection_url:str):
+        """
+        This method returns a dictionary with the key as the collection name, and the value as a list of urls scraped from the collection page 
+        @params: 
+        collection_url: the full url to request 
+        @returns:
+        {SomeCollectionName: list(hrefs)}
+        """
+        collection_dict = {}
+        hrefs = []
+        try:
+            response = request.urlopen(url=collection_url)
+        except URLError as e:
+            print("Not a valid url for get_urls_from_collection. Exception: " + str(e))
+            return
+        else:
+            soup = BeautifulSoup(response, "html.parser")
+            cards = soup.find_all("a", class_="card-link")
+            collection_name = stringCleanup(soup.find("h1", attrs={"class":"name"}).string)
+            for card in cards:
+                if 'image-anchor' in card["class"] and "card_recipe_info" not in card["class"]:
+                    hrefs.append(card["href"])
+            collection_dict[collection_name] = hrefs
+        return collection_dict
+
+
+    @classmethod
+    def getRecipeParts(self, response):
+        """
+        This method returns a dictionary with the recipe parts as keys (some recipes break their ingredients into parts, "for the salad", "for the dressing", "for the croutons") and values as a list of dictionaries with "display" as keys and the ingredient phrase as values
+
+        Data structure as shown below:
         {
-            PARTNAME : [{
-                'quantity':
-                'ingredient': 
-                'display': 
-            },
+            main : [
+                {"display": SOME_INGREDIENT_PHRASE (i.e. 4 tablespoons olive oil)},
+                {"display": ANOTHER_PHRASE},
+                ...
+            ],
+            ANOTHER_PART_NAME: [
+                {"display": SOME_INGREDIENT_PHRASE (i.e. 4 tablespoons olive oil)},
+                ...
                 
             ]
         }
-    '''
-    def getRecipeParts(self, response):
-        '''
-        Returns a dictionary containing the recipe parts broken own further into quantity, ingredient, and display as 
-        '''
+
+        """
         parts = {}
         sections = response.css('.recipe-ingredients-wrap > .recipe-ingredients').getall()
         sectionHeaders = response.css('.recipe-ingredients-wrap > .part-name ::text').getall()

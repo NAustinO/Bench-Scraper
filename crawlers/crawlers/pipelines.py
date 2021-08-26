@@ -32,8 +32,6 @@ class RecipeExportPipeline:
         line = json.dumps(ItemAdapter(item).asdict(), indent=4, ensure_ascii=False) + "," + "\n"
         self.file.write(line)
 
-        # TODO scrape image if item does not have one
-
         return item
 
     def open_spider(self, spider):
@@ -73,11 +71,4 @@ class RecipeExportPipeline:
         self.file.write("[ \n")
         self.file.close()
         print("Successfully scraped {} recipes".format(self.recipe_key))
-        post_process()
 
-
-def post_process():
-    """
-    This function takes
-    """
-    pass
