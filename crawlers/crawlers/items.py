@@ -7,6 +7,7 @@ import scrapy
 
 
 class Recipe(scrapy.Item):
+
     url = scrapy.Field()
     title = scrapy.Field()
     author = scrapy.Field()
@@ -27,5 +28,3 @@ class Recipe(scrapy.Item):
     images = scrapy.Field()
     #####
     
-
-#TODO Maybe make a recipe section class 

@@ -5,6 +5,7 @@
 
 
 # useful for handling different item types with a single interface
+
 import json
 import os
 import shutil
@@ -14,6 +15,7 @@ from pathlib import Path
 from itemadapter import ItemAdapter
 cwd = Path(__file__).parent.parent
 sys.path.append(cwd)
+from crawlers.items import Recipe
 from scrapy.pipelines.images import ImagesPipeline
 
 
@@ -22,15 +24,17 @@ crawlers_root = Path(__file__).parent.parent
 
 class RecipeExportPipeline:
 
-    def process_item(self, item: scrapy.Item, spider):
-        self.recipe_key += 1 
+    def process_item(self, item: Recipe, spider):
+        
         '''
         This method is called for every item pipleine component. Must return an item object, return a Deferred or raise a DropItem exception
         '''
-        
+
         # write the recipe as a JSON object to our target file
         line = json.dumps(ItemAdapter(item).asdict(), indent=4, ensure_ascii=False) + "," + "\n"
+        
         self.file.write(line)
+        self.recipe_key += 1 
 
         return item
 
@@ -66,9 +70,9 @@ class RecipeExportPipeline:
         This method is called when the spider is closed. 
         Writes to the file to [] to make the file a list of JSON objects
         '''
-        self.file.write("\n ]")
-        self.file.seek(0,0)
-        self.file.write("[ \n")
-        self.file.close()
+        #self.file.write("\n ]")
+        #self.file.seek(0,0)
+        #self.file.write("[ \n")
+        #self.file.close()
         print("Successfully scraped {} recipes".format(self.recipe_key))
 
