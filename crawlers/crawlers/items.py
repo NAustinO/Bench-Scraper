@@ -8,7 +8,7 @@ import scrapy
 
 class Recipe(scrapy.Item):
 
-    url = scrapy.Field()
+    url = scrapy.Field() # serves as key 
     title = scrapy.Field()
     author = scrapy.Field()
     yields = scrapy.Field()
@@ -19,8 +19,9 @@ class Recipe(scrapy.Item):
     steps = scrapy.Field()
     date_scraped = scrapy.Field()
     comments = scrapy.Field() # not used
-    collection_name = scrapy.Field() 
-    filters = scrapy.Field() # TODO
+    collections = scrapy.Field() # list 
+    filters = scrapy.Field() # list of filters that apply to the recipe 
+    full_url = scrapy.Field()
     
 
     ##### required for images pipeline

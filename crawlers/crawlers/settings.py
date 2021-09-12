@@ -21,7 +21,7 @@ ITEM_PIPELINES = {
 }
 #IMAGES_STORE = str(SCRAPY_ROOT_PATH) + "/data/images"
 IMAGES_STORE = "data/images"
-LOG_FILE = "data/scraping.log"
+#LOG_FILE = "data/scraping.log"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'crawlers (+http://www.yourdomain.com)'

@@ -11,6 +11,7 @@ import os
 import shutil
 import scrapy
 import sys 
+from datetime import datetime
 from pathlib import Path
 from itemadapter import ItemAdapter
 cwd = Path(__file__).parent.parent
@@ -39,31 +40,30 @@ class RecipeExportPipeline:
         return item
 
     def open_spider(self, spider):
-        '''
-        This method is called when the spider is opened 
-        '''
-
+        """
+        This method is called when the spider is opened only once.
+        """
+    
         if input("Are you sure you want to run this crawler? This may overwrite data like images (y/n)") != "y":
             exit()
 
+        
+        data_folder_name = datetime.now().strftime("%b-%d-%y (%I:%M:%S)")
+        folder_path = str(crawlers_root) + "/data/{}".format(data_folder_name)
+        images_folder_path = folder_path + "/images"
+
+        os.mkdir(folder_path)
+        os.mkdir(images_folder_path)
+
+        self.file = open(folder_path + "/nyt_data_raw.json", "w+", encoding="utf-8")
+        spider.custom_settings = {
+            "IMAGES_STORE" : images_folder_path,
+            "LOG_FILE": folder_path + "/scraping.log",
+        }
+
+
         # counter for the 
         self.recipe_key = 0
-
-        # open new raw data file
-        raw_json_path = str(crawlers_root) + "/data/nyt_data_raw.json"
-        self.file = open(raw_json_path, "w+", encoding="utf-8")
-
-        # remove existing image folder if it exists, otherwise creates a new one
-        image_dir_path = str(crawlers_root) + "/data/images"
-        if os.path.isdir(image_dir_path) is True:
-            shutil.rmtree(image_dir_path)
-            os.mkdir(image_dir_path)
-        else:
-            os.mkdir(image_dir_path)
-
-        # removes the previous scraping log if it exists 
-        if os.path.isfile(str(crawlers_root) + "/data/scraping.log") is True:
-            os.remove(str(crawlers_root) + "/data/scraping.log")
 
     def close_spider(self, spider):
         '''
@@ -73,6 +73,6 @@ class RecipeExportPipeline:
         #self.file.write("\n ]")
         #self.file.seek(0,0)
         #self.file.write("[ \n")
-        #self.file.close()
+        self.file.close()
         print("Successfully scraped {} recipes".format(self.recipe_key))
 
