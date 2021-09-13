@@ -35,7 +35,7 @@ class RecipeExportPipeline:
         line = json.dumps(ItemAdapter(item).asdict(), indent=4, ensure_ascii=False) + "," + "\n"
         
         self.file.write(line)
-        self.recipe_key += 1 
+        self.recipe_key += 1
 
         return item
 
@@ -47,7 +47,6 @@ class RecipeExportPipeline:
         if input("Are you sure you want to run this crawler? This may overwrite data like images (y/n)") != "y":
             exit()
 
-        
         data_folder_name = datetime.now().strftime("%b-%d-%y (%I:%M:%S)")
         folder_path = str(crawlers_root) + "/data/{}".format(data_folder_name)
         images_folder_path = folder_path + "/images"

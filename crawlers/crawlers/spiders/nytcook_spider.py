@@ -1,4 +1,5 @@
 import datetime
+from logging import root
 from re import search
 import sys, os
 import urllib
@@ -20,6 +21,7 @@ from twisted.internet.error import TimeoutError
 from scrapy import http
 from scrapy.http import Response
 from scrapy.extensions import closespider
+from scrapy.exceptions import CloseSpider
 from scrapy.pipelines.images import ImagesPipeline
 from scrapy.utils.trackref import NoneType
 from crawlers.items import Recipe
@@ -58,13 +60,13 @@ class TimesSpider(scrapy.Spider):
         """
             self.recipes format:
             {
-                url#1: {
+                shorthandURL#1: {
                     "url": 3w4t,
                     "filters": [], 
                     "collections": []
                 }
-                url#2: {}
-                url#3: {}
+                shorthandURL#2: {...}
+                shorthandURL#3: {...}
             }
         """
         self.initialize_recipe_dict()
@@ -89,7 +91,10 @@ class TimesSpider(scrapy.Spider):
         then adds the recipes attribute
         """
         # DEBUGGING. WHEN DONE UNCOMMENT THIS
-        #valid_search_page_urls = self.__get_search_page_urls()
+        #replace_at = "GRASS"
+        #root_url = "https://cooking.nytimes.com/search?q=&page={}".format(replace_at)
+        #valid_search_page_urls = self.__url_paginating_from_root(root_url, replace_at)
+        
         valid_search_page_urls = ["https://cooking.nytimes.com/search?q=&page=1"] # delete this when done debugging 
         # END DEBUGGING
 
@@ -134,9 +139,8 @@ class TimesSpider(scrapy.Spider):
         Applies each combination of filters on the results.
         Parses the results page for recipes.
         """
-        url_filter_dict = self.__get_recipe_urls_by_filter(
-            self.__get_filter_combinations(self.start_url)
-        )
+        filters_combinations = self.__get_filter_combinations(self.start_url)
+        url_filter_dict = self.__get_recipe_urls_by_filter(filters_combinations)
 
         for url, filter_list in url_filter_dict.items():
             if self.recipes.get(url) is None:
@@ -145,11 +149,14 @@ class TimesSpider(scrapy.Spider):
                 new_recipe["filters"] = filter_list
                 self.recipes[url] = new_recipe
             else:
-                self.recipes[url] = (
-                    self.recipes.get(url).get("filters", []) + filter_list
-                    if filter_list is not None
-                    else self.recipes.get(url).get("filters")
-                )
+                existing = self.recipes.get(url)
+                if existing.get("filters") is None:
+                    existing["filters"] = filter_list
+                else:
+                    existing_filters = list(existing["filters"])
+                    existing["filters"] = zip(existing_filters, filter_list)
+                self.recipes[url] = existing
+
 
     def errback_httpbin(self, failure):
         # log all errback failures,
@@ -198,11 +205,20 @@ class TimesSpider(scrapy.Spider):
         else:
             image_urls.append(imageURL)
         try:
-            recipe["url"] = recipe_info_dict.get("url")
-            recipe["filters"] = recipe_info_dict.get("filters")
-            recipe["collections"] = recipe_info_dict.get("collections")
-            recipe["image_urls"] = image_urls
+            try:
+                filters = list(recipe_info_dict.get("filters"))
+            except ValueError:
+                filters = []
 
+            try:
+                collections = list(recipe_info_dict.get("collections"))
+            except ValueError:
+                collections = []
+
+            recipe["url"] = recipe_info_dict.get("url")
+            recipe["filters"] = filters
+            recipe["collections"] = collections
+            recipe["image_urls"] = image_urls
             recipe["title"] = stringCleanup(
                 response.css('h1.recipe-title::text').get()
             )
@@ -395,47 +411,34 @@ class TimesSpider(scrapy.Spider):
             
             #  "low calorie" in ["low calorie", "low cholestrol", "low sugar", "low-carb]
             for filter in filter_list:
-                page_num = 1
-                # used to end while loop
-                end_loop_counter = 0
-                while True:
-                    url = "https://cooking.nytimes.com/search?filters%5B{}%5D%5B%5D={}&q=&page={}".format(
-                        filter_category.replace(" ", "_"),
-                        filter.replace(" ", "%20"),
-                        page_num
-                    )
-                    #url = "https://cooking.nytimes.com/search?filters%5Bspecial_diets%5D%5B%5D=vegetarian&q=&page=85"
-                    try:
-                        response = request.urlopen(url)
-                    except URLError:
-                        if end_loop_counter >= 3:
-                            print("The last url for the filter page was: " + url)
-                            break
-                        else:
-                            end_loop_counter += 1
-                            page_num += 1
-                    print(
-                        "Successfully reached filter url: {}.".format(url),
-                        "Now scraping the recipe urls for each category",
-                    )
+
+                print(
+                    "Filter category: " + filter_category + "\n"
+                    "Filter: " + filter
+                )
+
+                replace_at = "GRASS"
+
+                url = "https://cooking.nytimes.com/search?filters%5B{}%5D%5B%5D={}&q=&page={}".format(
+                    filter_category.replace(" ", "_"),
+                    filter.replace(" ", "%20"),
+                    replace_at
+                )
+
+                search_pagination_urls_list = self.__url_paginating_from_root(url, replace_at)
+
+                for url in search_pagination_urls_list:
+                    response = request.urlopen(url)
                     soup = BeautifulSoup(response, "html.parser")
                     cards = soup.find_all(is_card_without_duplicate)
-                    if len(cards) == 0:
-                        break
+                   # if len(cards) == 0:
+                    #    break
                     for card in cards:
-                        # Example of raw_url:
-                        # https://cooking.nytimes.com/recipes/1022347-butter-mochi?action=click&module=Global%20Search%20Recipe%20Card&pgType=search&rank=1
-                         
-                        # raw_url will look like
-                        # '/recipes/10391-chipotle-tomatillo-and-pineapple-salsa'
-                        raw_url = str(card["href"])
-                        replace_at_index = raw_url.find("?action")
-                        # Example of parsed_url:
-                        # https://cooking.nytimes.com/recipes/1022347-butter-mochi
-                        if replace_at_index != -1:
-                            parsed_url = raw_url[replace_at_index:]
-                        else:
-                            parsed_url = raw_url
+                        href = str(card["href"])
+                        parsed_url = (
+                            href if href.find("?action") == -1
+                            else href[href.find("?action"):]
+                        )
 
                         # if the url doesnt exist in data structure to return
                         if recipes.get(parsed_url) is None:
@@ -447,52 +450,12 @@ class TimesSpider(scrapy.Spider):
                             current_filters = list(recipes.get(parsed_url))
                             current_filters.append(filter)
                             recipes[parsed_url] = current_filters
-                    end_loop_counter = 0
-                    page_num += 1
-                    break # DELETE THIS AFTER DEBUGGING 
-
+                        
             # debugging
-            filter_list = ", ".join(recipes.get("/recipes/1022494-banana-cream-pie"))
-            print("This is the filters for url /recipes/1022494-banana-cream-pie:".format(filter_list))
+            #filter_list = ", ".join(recipes.get("/recipes/1022494-banana-cream-pie"))
+           # print("This is the filters for url /recipes/1022494-banana-cream-pie:".format(filter_list))
             print("Total URL count: " + str(len(recipes.keys())))
-            return recipes 
-
-
-    def __get_search_page_urls(self):
-        """
-        This method checks each increment of 1 @ https://cooking.nytimes.com/search?q=&page=NUMBERHERE and returns a list containing the urls as strings that are valid and able to be parsed further for recipe urls 
-        """
-
-        urls = [] 
-
-        skipped_urls = []
-
-        search_page_number = 1
-
-        end_loop_counter = 0 #stores the number of times the request url fails to return a valid page. Once it has reached 3, the loop will end 
-
-        while True:
-            page_url = "https://cooking.nytimes.com/search?q=&page={}".format(search_page_number)
-            try:
-                response = request.urlopen(url=page_url)
-            except URLError:
-                skipped_urls.append(page_url)
-                if end_loop_counter >= 5:
-                    print("The last valid url page was " + page_url)
-                    break
-                else:
-                    end_loop_counter += 1 
-                    search_page_number += 1
-            else:
-                print("Successfully reached url: {}".format(page_url))
-                end_loop_counter = 0 
-                search_page_number += 1
-                urls.append(page_url)
-
-        print("The skipped urls are: ")
-        print(*skipped_urls, sep=", ") # prints all the page numbers that were skipped for debugging 
-        return urls 
-    
+            return recipes
                    
     def __get_urls_from_collection_page(self, collection_page_url):
         """
@@ -522,6 +485,83 @@ class TimesSpider(scrapy.Spider):
                 # adds to the collection list if it exists otherwise creates a new one
                 existing_recipe["collections"] = existing_recipe.get("collections", []) + [collection_name]
                 self.recipes[href] = existing_recipe
+
+    def __url_paginating_from_root(self, root_url: str, index_str: str) -> list:
+        """
+        Given the base_url (for example "https://cooking.nytimes.com/search?q=&page=SOM")
+        this method will return a list containing the paginated urls that stem from the base_url
+        by incrementing the page count until recipes are no longer showing up in the html page.
+
+        It will find the index_str within the root_url to index where in root_url the substitution should occur
+    
+        Usage: 
+            - self.__url_paginating_from_root("https://cooking.nytimes.com/search?q=&page=INDEXSTRING", "INDEXSTRING")
+        Arguments:
+            - root_url: a string of the full url to paginate from
+                - **IMPORTANT: this argument must contain the index_str at the place where the substitution of page number will take place 
+                - #**IMPORTANT: the index_str
+            - index_str: the string within the root_url where the format substitution will be taking place 
+            - replace_with: a list of tuple containing the values that wil be replacing the index_str in root_url
+                - TUPLE FORMAT: 
+                - IMPORTANT if the value in the tuple is of type(int), then it is assumed that it will be incremented 
+        Returns:
+            - a list object containing string urls that are able to be parsed further =
+        """
+    
+        count = root_url.count(index_str)
+        if count != 1:
+            print(
+                "The count of placeholder substrings did not match "
+                "the number of strings to replace with"
+            )
+            raise CloseSpider("Spider closed")    
+
+        # list of valid urls to return 
+        valid_urls = []
+
+        # keeps record of the urls inm between valid urls that are skipped
+        # used for debugging purposes only
+        skipped_urls = []
+
+        page_number = 1
+
+        end_loop_counter = 0
+
+        while True:
+            # DEBUGGING
+            if page_number == 4: # DEBUGGIN
+                break
+            page_url = root_url.replace(index_str, str(page_number))
+            try:
+                response = request.urlopen(url=page_url)
+                
+            except URLError:
+                skipped_urls.append(page_url)
+                if end_loop_counter >= 3:
+                    print("The last valid url page was " + page_url)
+                    break
+                else:
+                    end_loop_counter += 1
+                    page_number += 1
+            soup = BeautifulSoup(response, "html.parser")
+            # ends the loop if a page doesn't have any recipe cards on it 
+            if len(soup.find_all(is_card_without_duplicate)) == 0:
+                break
+            print("Successfully reached url: {}".format(page_url))
+            end_loop_counter = 0
+            page_number += 1
+            valid_urls.append(page_url)
+        print(
+            "The skipped urls are: ",
+            *skipped_urls,
+            sep=", "
+        )
+        return valid_urls
+
+
+
+
+
 
 
 
