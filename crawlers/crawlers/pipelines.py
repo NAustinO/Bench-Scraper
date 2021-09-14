@@ -8,9 +8,8 @@
 
 import json
 import os
-import shutil
-import scrapy
 import sys 
+import time
 from datetime import datetime
 from pathlib import Path
 from itemadapter import ItemAdapter
@@ -40,12 +39,16 @@ class RecipeExportPipeline:
         return item
 
     def open_spider(self, spider):
+
         """
         This method is called when the spider is opened only once.
         """
     
         if input("Are you sure you want to run this crawler? This may overwrite data like images (y/n)") != "y":
             exit()
+
+        # for determining duration of process
+        self.start_time = time.monotonic()
 
         data_folder_name = datetime.now().strftime("%b-%d-%y (%I:%M:%S)")
         folder_path = str(crawlers_root) + "/data/{}".format(data_folder_name)
@@ -57,11 +60,8 @@ class RecipeExportPipeline:
         self.file = open(folder_path + "/nyt_data_raw.json", "w+", encoding="utf-8")
         spider.custom_settings = {
             "IMAGES_STORE" : images_folder_path,
-            "LOG_FILE": folder_path + "/scraping.log",
         }
 
-
-        # counter for the 
         self.recipe_key = 0
 
     def close_spider(self, spider):
@@ -69,9 +69,14 @@ class RecipeExportPipeline:
         This method is called when the spider is closed. 
         Writes to the file to [] to make the file a list of JSON objects
         '''
-        #self.file.write("\n ]")
-        #self.file.seek(0,0)
-        #self.file.write("[ \n")
+        self.file.write("\n ]")
+        self.file.seek(0,0)
+        self.file.write("[ \n")
         self.file.close()
-        print("Successfully scraped {} recipes".format(self.recipe_key))
+        
+        # TODO ADD POST PROCESSING FOR FILE TO PARSE INTO INDIVIDUAL CSV FILES 
+        print(
+            "Successfully scraped {} recipes\n".format(self.recipe_key),
+            "Time to run (min:sec): {}:{}" #TODO
+        )
 

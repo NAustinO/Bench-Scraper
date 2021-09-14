@@ -10,7 +10,6 @@ import shutil
 import os
 
 
-
 sys.path.append(Path(__file__).parent)
 
 def toCSV(file_path):
@@ -48,7 +47,6 @@ def toCSV(file_path):
     print("done")
 
 
-        
 def print_unique_keys(file_path):
     
     """
@@ -67,7 +65,7 @@ def print_unique_keys(file_path):
     for attr in list(attributes_set):
         print(attr)
     
-                    
+                 
 def main():
     file_path = "crawlers/data/parsed_ing_output.json"
     toCSV(file_path)
@@ -86,6 +84,7 @@ def get_image_urls(query: str, num: int=1):
     num - number of urls to return 
     TODO make this compatible with numbers greater than 1 
     """
+    
     try:
         driver = webdriver.Chrome("/Users/nickozawa/Documents/Programming Projects/PanTree/chromedriver")
         
@@ -93,14 +92,11 @@ def get_image_urls(query: str, num: int=1):
 
         urls_list = []
         driver.get(query_url)
-        time.sleep(.1)
+        time.sleep(.01)
         for i in range(num):
-            #img = driver.find_element_by_xpath('//div//div//div//div//div//div//div//div//div//div['+str(i)+']//a[1]//div[1]//img[1]')
-            #img = driver.find_element_by_xpath('//body//div//c-wiz//div//div//div//div//div//div//div//span//div//div//div//a//div//img')
             img = driver.find_element_by_xpath("/html/body/div[2]/c-wiz/div[3]/div[1]/div/div/div/div[1]/div[1]/span/div[1]/div[1]/div[1]/a[1]/div[1]/img")
             img.click()
-            time.sleep(.1) 
-            #img_url = driver.find_element_by_xpath("//body//div//c-wiz//div//div//div//div//div//div//div//c-wiz//div//div//div//div//div//a//img").get_attribute("src")
+            time.sleep(.01)
             img_url = driver.find_element_by_xpath("/html/body/div[2]/c-wiz/div[3]/div[2]/div[3]/div/div/div[3]/div[2]/c-wiz/div/div[1]/div[1]/div[2]/div[1]/a/img").get_attribute("src")
             urls_list.append(img_url)
             ""
