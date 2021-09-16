@@ -4,8 +4,12 @@ from urllib.error import URLError
 from scrapy import http
 from bs4 import BeautifulSoup
 from scrapy.exceptions import CloseSpider
-from ..nyt.selectors import is_card_without_duplicate
+from ..nyt.selectors import (
+    is_card_without_duplicate,
+    search_page_articles
+)
 from ..nyt.utils import stringCleanup
+
 
 
 def parse_recipe_ingredients(response: http.TextResponse) -> dict:
@@ -85,7 +89,7 @@ def parse_recipe_ingredients(response: http.TextResponse) -> dict:
     return parts
 
 
-def paginate_urls_from_root(root_url: str, index_str: str, page: str) -> list:
+def paginate_urls_from_root(root_url: str, index_str: str, page: str=None) -> list:
     """
         Given the base_url (for example "https://cooking.nytimes.com/search?q=&page=SOM")
         this method will return a list containing the paginated urls that stem from the base_url
@@ -107,7 +111,9 @@ def paginate_urls_from_root(root_url: str, index_str: str, page: str) -> list:
     """
 
     if page == "search":
-        selector = ""
+        selector_func = search_page_articles
+    else:
+        selector_func = is_card_without_duplicate
     # validates that there is only one index_str placeholder in root_url
     if root_url.count(index_str) != 1:
         print(
@@ -128,7 +134,7 @@ def paginate_urls_from_root(root_url: str, index_str: str, page: str) -> list:
         page_url = root_url.replace(index_str, str(page_number))
         try:
             response = request.urlopen(url=page_url)
-        except URLError:
+        except Exception:
             skipped_urls.append(page_url)
             if end_loop_counter >= 3:
                 print("The last valid url page was " + page_url)
@@ -136,14 +142,23 @@ def paginate_urls_from_root(root_url: str, index_str: str, page: str) -> list:
             else:
                 end_loop_counter += 1
                 page_number += 1
-        soup = BeautifulSoup(response, "html.parser")
-        # ends the loop if a page doesn't have any recipe cards on it
-        if len(soup.find_all(is_card_without_duplicate)) == 0:
-            break
-        print("Successfully reached url: {}".format(page_url))
-        end_loop_counter = 0
-        page_number += 1
-        valid_urls.append(page_url)
+        else:
+            soup = BeautifulSoup(response, "html.parser")
+            # ends the loop if a page doesn't have any recipe cards on it
+            
+            if len(soup.find_all(selector_func)) == 0:
+                if end_loop_counter >= 3:
+                    print("The last valid url page was " + page_url)
+                    break
+                else:
+                    skipped_urls.append(page_url)
+                    end_loop_counter += 1
+                    page_number += 1
+            else:
+                print("Successfully reached url: {}".format(page_url))
+                end_loop_counter = 0
+                page_number += 1
+                valid_urls.append(page_url)
     print(
         "The skipped urls are: ",
         *skipped_urls,
@@ -193,7 +208,7 @@ def get_filter_combinations(start_url: str = "https://cooking.nytimes.com/search
 
     for tag in filter_tags:
         # filter_category will be used as the key for the dict 
-        filter_category = tag["key"] 
+        filter_category = tag["key"]
         filter = tag["term"]
         # if the filter_category does not exist already
         # creates a new filter list and adds to it

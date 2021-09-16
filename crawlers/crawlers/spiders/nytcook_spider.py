@@ -1,5 +1,4 @@
-import sys
-import scrapy 
+import sys, scrapy
 from pathlib import Path
 from bs4 import BeautifulSoup
 from urllib import request
@@ -18,6 +17,7 @@ from ..utils.nyt.utils import (
     stringCleanup,
     query_for_image
 ) 
+
 from ..utils.nyt.parse_helpers import (
     parse_recipe_ingredients,
     paginate_urls_from_root,
@@ -26,7 +26,6 @@ from ..utils.nyt.parse_helpers import (
 from ..utils.nyt.selectors import is_card_without_duplicate
 
 
-#TODO FIX IMPORTS 
 class TimesSpider(scrapy.Spider):
 
     name = "times"
@@ -37,13 +36,16 @@ class TimesSpider(scrapy.Spider):
         """
             self.recipes format:
             {
+                shorthandURL#1: {
                     "url": 3w4t,
                     "filters": [],
                     "collections": []
-                }
-                shorthandURL#2: {...}
+                },
+                shorthandURL#2: {...},
                 shorthandURL#3: {...}
+                }
             }
+
         """
         self.initialize_recipe_dict()
         for url, recipe in self.recipes.items():
@@ -57,18 +59,21 @@ class TimesSpider(scrapy.Spider):
 
     def initialize_recipe_dict(self):
         """
-        Wrapper method that fills the recipes dictionary attribute via the "search page method" and the "filter method"
+        Wrapper method that fills the recipes dictionary attribute via the 
+        "search page method" and the "filter method"
         """
+        print("Initializing the recipes data structure\n")
 
         # SEARCH PAGE METHOD:
         # Gets all valid pages from the blank query search results page and
         # parses them to get their containing recipe urls
-        # then adds the recipes attribute
+        # then adds to the recipes attribute data structure
         replace_at = "GRASS"
         root_url = "https://cooking.nytimes.com/search?q=&page={}".format(replace_at)
-        valid_search_page_urls = paginate_urls_from_root(root_url, replace_at)
+        valid_search_page_urls = paginate_urls_from_root(root_url, replace_at, page="search")
         
         for url in valid_search_page_urls:
+            print("Searching page: " + str(url))
             response = request.urlopen(url)
             soup = BeautifulSoup(response, "html.parser")
             # urls are in shorthand
@@ -76,6 +81,8 @@ class TimesSpider(scrapy.Spider):
                 a['href'] for a
                 in soup.find_all("a", class_=["card-link", "card-recipe-info"])
             ])
+
+            # urls_on_page = ["/recipes/1019708-cauliflower-gratin-with-leeks-and-white-cheddar", ...]
             urls_on_page = list(urls_on_page)
             for url_on_page in urls_on_page:
                 # if the url found on the search page is a recipe
@@ -83,9 +90,9 @@ class TimesSpider(scrapy.Spider):
                 # adds the url as a key with a value as an empty dict object
                 if url_on_page.startswith("/recipes"):
                     if self.recipes.get(url_on_page) is None:
-                        value = {}
-                        value["url"] = url_on_page
-                        self.recipes[url_on_page] = value
+                        entry = {}
+                        entry["url"] = url_on_page
+                        self.recipes[url_on_page] = entry
         
                 # if the url found on the search page is a collection url,
                 # go to the page and add the recipe urls if they don't exist in recipes data structure.
@@ -93,7 +100,14 @@ class TimesSpider(scrapy.Spider):
                 elif url_on_page[2].isdigit():
                     full_url = "https://cooking.nytimes.com{}".format(url_on_page)
                     self.__get_urls_from_collection_page(full_url)
-            
+                
+                # start corner cases 
+                elif url_on_page.startswith("/thanksgiving"):
+                    full_url = "https://cooking.nytimes.com{}".format(url_on_page)
+                    self.__get_urls_from_collection_page(full_url)
+                elif url_on_page.startswith("/guides"):
+                    pass
+        
                 #  This should not happen
                 else:
                     full_url = "https://cooking.nytimes.com{}".format(url_on_page)
@@ -157,89 +171,116 @@ class TimesSpider(scrapy.Spider):
         This method is responsible for parsing each recipe page and filling the Recipe object fields from the html.
         """
         print("Now parsing page: " + response.url)
+
         recipe = Recipe()
         recipe_info_dict = response.meta.get("recipe")
 
-        """
-        This part sets up the image scraper 
-        If the recipe webpage had an image, it will use that as the image_urls image.
-        Otherwise it will create a query from the recipe title and use Selenium to create a Google query. 
-        The source url for the image will be scraped fromt the first result
-        """
-        image_urls = []
+        recipe["url"] = recipe_info_dict.get("url")
+
+        # image scraping (from page or Google if not available)
         try:
+            image_urls = []
             imageURL = response.css('.recipe-intro>.media-container img').attrib['src']
-        except KeyError:
-            title_for_query = stringCleanup(response.css('h1.recipe-title::text').get())
-            image_urls = ""
-            # image_urls = query_for_image(title_for_query)
-        else:
             image_urls.append(imageURL)
-
-        try:
-            filters = list(recipe_info_dict.get("filters"))
-        except Exception:
-            filters = []
-
-        try:
-            collections = list(recipe_info_dict.get("collections"))
-        except Exception:
-            collections = []
-
-        # parsing the response and applying all the data to the 
-        # Recipe object fields
-        try:
-            recipe["url"] = recipe_info_dict.get("url")
-            recipe["filters"] = filters
-            recipe["collections"] = collections
+        except KeyError:
+            try:
+                query = stringCleanup(response.css('h1.recipe-title::text').get())
+                image_urls = query_for_image(query)
+            except Exception:
+                image_urls = []
+        finally:
             recipe["image_urls"] = image_urls
 
+        # filters
+        try:
+            recipe["filters"] = list(recipe_info_dict.get("filters"))
+        except Exception:
+            recipe["filters"] = []
+
+        # categories
+        try:
+            recipe["collections"] = list(recipe_info_dict.get("collections"))
+        except Exception:
+            recipe["collections"] = []
+        
+        # recipe title
+        try:
             recipe["title"] = stringCleanup(
                 response.css('h1.recipe-title::text').get()
             )
+        except Exception:
+            recipe["title"] = None
 
+        # author
+        try:
             recipe["author"] = stringCleanup(
                 response.css(".nytc---recipebyline---bylinePart > a::text").get()
             )
-
+        except Exception:
+            recipe["author"] = None
+        
+        # yield amount
+        try:
             recipe["yields"] = stringCleanup(
                 response.css(".recipe-yield-container > .recipe-yield-value::text")
                 .get()
             )
+        except Exception:
+            recipe["yields"] = None
 
+        # time to prepare
+        try:
             recipe["time"] = stringCleanup(
                 response.css(".recipe-time-yield li:nth-child(2) > .recipe-yield-value::text")
                 .get()
             )
+        except Exception:
+            recipe["time"] = None
 
+        # recipe intro paragraph
+        try:
             recipe["intro"] = stringCleanup(
                 response.css('.recipe-topnote-metadata .topnote p ::text')
                 .get()
             )
-
-            # note that this is a list
+        except Exception:
+            recipe["intro"] = None
+    
+        # recipe tags
+        try:
             recipe["tags"] = [
                 stringCleanup(tag)
                 for tag
                 in response.css('.tags-nutrition-container > .tag::text')
                 .getall()
             ]
+        except Exception:
+            recipe["tags"] = None
 
-            # note that this is a list
+        # recipe steps
+        try:
             recipe["steps"] = [
                 stringCleanup(item)
                 .replace('<li>', '')
                 .replace('</li>', '')
                 for item in response.css('.recipe-steps > li').getall()
             ]
-
+        except Exception:
+            recipe["steps"] = None
+        
+        # ingredients
+        try:
             recipe["ingredients"] = parse_recipe_ingredients(response)
+        except Exception:
+            recipe["ingredients"] = {}
+
+        # full url
+        try:
             recipe["full_url"] = response.url
-        except Exception as e:
-            print("An error occurred in parse")
-            raise closespider("Ran into an exception: " + e)
-        else:
-            yield recipe
+        except Exception:
+            recipe["full_url"] = None
+
+        yield recipe
 
 
     def __get_recipe_urls_by_filter(self, category_filter_dict: dict):
@@ -258,7 +299,7 @@ class TimesSpider(scrapy.Spider):
             }
         """
 
-        print("In method: get_recipe_urls_by_filter")
+        print("Getting the recipe urls filter lists")
         
         # This is the dictionary to be returned
         recipes = {}
@@ -294,6 +335,7 @@ class TimesSpider(scrapy.Spider):
                             # start a list with the filter and
                             # add the url as a key to the recipe dictionary
                             recipes[parsed_url] = [filter]
+
                         # if url does exist in data structure to return
                         else:
                             current_filters = list(recipes.get(parsed_url))
@@ -310,19 +352,27 @@ class TimesSpider(scrapy.Spider):
         does not exist, otherwise adding to the current Recipe item by adding
         to its collections attribute
         """
+        print("Getting urls from collection url: " + str(collection_page_url))
         try:
             response = request.urlopen(collection_page_url)
         except URLError as e:
             print("Not a valid url for get_urls_from_collection. Exception: " + str(e))
             return
         soup = BeautifulSoup(response, "html.parser")
-        collection_name = stringCleanup(
-            soup.find("h1", attrs={"class":"name"}).string
-        )
+        try:
+            collection_name = stringCleanup(
+                soup.find("h1", attrs={"class":"name"}).string
+            )
+        except Exception:
+            if collection_page_url == "https://cooking.nytimes.com/68861692-nyt-cooking/29280939-our-50-most-popular-vegetarian-recipes-of-2020":
+                collection_name = "Our 50 Most Popular Vegetarian Recipes of 2020"
+            else:
+                collection_name = "" #TODO fix this <----
         cards = soup.find_all(is_card_without_duplicate)
         for card in cards:
             href = card["href"]
-            # if recipes does not contain url, create a new recipe item and add it to the recipe collection
+            # if recipes does not contain url, creates a new recipe item 
+            # and adds it to the recipe collection
             if self.recipes.get(href) is None:
                 new_recipe = {}
                 new_recipe["url"] = href

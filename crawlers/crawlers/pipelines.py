@@ -51,13 +51,13 @@ class RecipeExportPipeline:
         self.start_time = time.monotonic()
 
         data_folder_name = datetime.now().strftime("%b-%d-%y (%I:%M:%S)")
-        folder_path = str(crawlers_root) + "/data/{}".format(data_folder_name)
-        images_folder_path = folder_path + "/images"
+        self.folder_path = str(crawlers_root) + "/data/{}".format(data_folder_name)
+        images_folder_path = self.folder_path + "/images"
 
-        os.mkdir(folder_path)
+        os.mkdir(self.folder_path)
         os.mkdir(images_folder_path)
 
-        self.file = open(folder_path + "/nyt_data_raw.json", "w+", encoding="utf-8")
+        self.file = open(self.folder_path + "/nyt_data_raw.json", "w+", encoding="utf-8")
         spider.custom_settings = {
             "IMAGES_STORE" : images_folder_path,
         }
@@ -77,6 +77,6 @@ class RecipeExportPipeline:
         # TODO ADD POST PROCESSING FOR FILE TO PARSE INTO INDIVIDUAL CSV FILES 
         print(
             "Successfully scraped {} recipes\n".format(self.recipe_key),
-            "Time to run (min:sec): {}:{}" #TODO
+            "Time to run (min:sec): {}:{}".format() #TODO
         )
 
