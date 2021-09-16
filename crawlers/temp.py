@@ -75,37 +75,3 @@ if __name__ == "__main__":
     main()
 
 
-
-def get_image_urls(query: str, num: int=1): 
-    """
-    This returns a list of google image urls based on the search query using the selenium ChromeDriver
-    @params:
-    query - search query
-    num - number of urls to return 
-    TODO make this compatible with numbers greater than 1 
-    """
-    
-    try:
-        driver = webdriver.Chrome("/Users/nickozawa/Documents/Programming Projects/PanTree/chromedriver")
-        
-        query_url = 'https://www.google.com/search?q={}&source=lnms&tbm=isch&sa=X&ved=2ahUKEwie44_AnqLpAhUhBWMBHUFGD90Q_AUoAXoECBUQAw&biw=1920&bih=947'.format(query.replace(" ", "+"))
-
-        urls_list = []
-        driver.get(query_url)
-        time.sleep(.01)
-        for i in range(num):
-            img = driver.find_element_by_xpath("/html/body/div[2]/c-wiz/div[3]/div[1]/div/div/div/div[1]/div[1]/span/div[1]/div[1]/div[1]/a[1]/div[1]/img")
-            img.click()
-            time.sleep(.01)
-            img_url = driver.find_element_by_xpath("/html/body/div[2]/c-wiz/div[3]/div[2]/div[3]/div/div/div[3]/div[2]/c-wiz/div/div[1]/div[1]/div[2]/div[1]/a/img").get_attribute("src")
-            urls_list.append(img_url)
-            ""
-        driver.quit()
-        return urls_list
-    except Exception as e:
-        print("There was an error in get_image_urls for query: " + query)
-        print(sys.exc_info()[0], "occurred.")
-        #exit()
-        
-
-
