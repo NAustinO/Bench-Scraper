@@ -25,4 +25,5 @@ def search_page_articles(tag: Tag):
         and tag.has_attr("class")
         and "card" in tag["class"] 
         and tag.has_attr("data-type")
+        and tag.has_attr("data-url")
     )

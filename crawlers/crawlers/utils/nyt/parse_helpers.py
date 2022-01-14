@@ -1,9 +1,12 @@
-
+import sys, os
+from pathlib import Path
+sys.path.append(Path(__file__).parents[1])
 from urllib import request
 from urllib.error import URLError
 from scrapy import http
 from bs4 import BeautifulSoup
 from scrapy.exceptions import CloseSpider
+
 from ..nyt.selectors import (
     is_card_without_duplicate,
     search_page_articles
@@ -145,20 +148,23 @@ def paginate_urls_from_root(root_url: str, index_str: str, page: str=None) -> li
         else:
             soup = BeautifulSoup(response, "html.parser")
             # ends the loop if a page doesn't have any recipe cards on it
-            
-            if len(soup.find_all(selector_func)) == 0:
-                if end_loop_counter >= 3:
-                    print("The last valid url page was " + page_url)
-                    break
+            try:
+                if len(soup.find_all(selector_func)) == 0:
+                    if end_loop_counter >= 3:
+                        print("The last valid url page was " + page_url)
+                        break
+                    else:
+                        skipped_urls.append(page_url)
+                        end_loop_counter += 1
+                        page_number += 1
                 else:
-                    skipped_urls.append(page_url)
-                    end_loop_counter += 1
+                    print("Successfully reached url: {}".format(page_url))
+                    end_loop_counter = 0
                     page_number += 1
-            else:
-                print("Successfully reached url: {}".format(page_url))
-                end_loop_counter = 0
-                page_number += 1
-                valid_urls.append(page_url)
+                    valid_urls.append(page_url)
+            except Exception:
+                print("there was an exception in paginate_urls")
+                break
     print(
         "The skipped urls are: ",
         *skipped_urls,

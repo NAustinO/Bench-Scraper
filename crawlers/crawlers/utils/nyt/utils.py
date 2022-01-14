@@ -112,7 +112,7 @@ def query_for_image(query: str) -> list:
             "/div[2]/c-wiz/div/div[1]/div[1]/div[2]/div[1]/a/img"
         ).get_attribute("src")
         urls_list.append(img_url)
-        driver.quit()
+        # driver.quit() Does commenting this out make it faster?
     except Exception:
         print("There was an error in query_for_image for query: " + query)
         #print(sys.exc_info()[0], "occurred.")
