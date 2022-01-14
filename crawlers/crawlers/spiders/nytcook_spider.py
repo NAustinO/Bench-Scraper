@@ -12,7 +12,7 @@ from scrapy.exceptions import CloseSpider
 from crawlers.items import Recipe
 path = Path(__file__)
 sys.path.append(path.parents[2])
-print(sys.path)
+
 
 from ..utils.nyt.utils import (
     stringCleanup,
@@ -69,7 +69,7 @@ class TimesSpider(scrapy.Spider):
         # Gets all valid pages from the blank query search results page and
         # parses them to get their containing recipe urls
         # then adds to the recipes attribute data structure
-        ##### DEBUGGING 
+
         replace_at = "GRASS"
         root_url = "https://cooking.nytimes.com/search?q=&page={}".format(replace_at)
         valid_search_page_urls = paginate_urls_from_root(root_url, replace_at, page="search")
@@ -386,7 +386,3 @@ class TimesSpider(scrapy.Spider):
                 # adds to the collection list if it exists otherwise creates a new one
                 existing_recipe["collections"] = existing_recipe.get("collections", []) + [collection_name]
                 self.recipes[href] = existing_recipe
-
-
-
-# URL COUNT 1230
