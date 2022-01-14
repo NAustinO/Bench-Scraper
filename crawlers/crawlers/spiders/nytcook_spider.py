@@ -23,42 +23,6 @@ class TimesSpider(scrapy.Spider):
     path = Path(__file__)
     IMAGES_DIR_PATH = str(path.parents[2]) + "/data/images"
 
-    #start_urls = ["https://cooking.nytimes.com/recipes/4796-lemon-glazed-cardamom-pear-tea-bread"]
-
-    '''
-    def start_requests(self):
-        pageUrls = []
-        
-        pageNumber = 1
-
-        end_loop_trigger = 0 # stores the number of times the request url fails to return a valid page. 
-
-        # iterates over each page to get the page urls in a list
-        while True:
-            url = "https://cooking.nytimes.com/search?q=&page={}".format(pageNumber)
-
-            try:
-                #TODO find a way to identify if a page is a valid collection page vs a error handling page 
-
-                response = request.urlopen(url=url)
-            except URLError:
-                if end_loop_trigger >= 3:
-                    print("The last valid url page was " + url)
-                    break
-                else:
-                    end_loop_trigger += 1
-                    pageNumber += 1 
-                    
-            else:
-                print("Successfully reached url: {}".format(url))
-                end_loop_trigger = 0 
-                pageNumber += 1
-                pageUrls.append(url)
-
-
-        for url in pageUrls:
-            yield scrapy.Request(url=url, callback=self.parse_page)
-    '''
 
     def start_requests(self):
         """
@@ -112,7 +76,6 @@ class TimesSpider(scrapy.Spider):
                 collection_page = request.urlopen(url=link)
                 soup = BeautifulSoup(collection_page, "html.parser")
                 collection_name = soup.find("h1", attrs={"class":"name"}).string
-
                 collection_set = set()
                 collection_set.add(collection_name)
                 metadata = {

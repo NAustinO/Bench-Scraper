@@ -1,4 +1,6 @@
 archived
 crawlers/data
-run_crawl.py
 todo.md
+chromedriver
+.vscode/
+readme.md
