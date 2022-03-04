@@ -1,3 +1,3 @@
 # NYT-cooking
-Tool to parse all recipes of the NYT cooking page into a JSON object. Data is not included within this repository and is for personal use only.  
+Web scraping and image parsing tool that exports JSON file and corresponding image folder containing all recipes. Data is not included within this repository and is for personal use only.  
 Some files have been excluded. 
