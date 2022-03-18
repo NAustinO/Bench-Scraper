@@ -3,5 +3,6 @@ crawlers/data
 run_crawl.py
 todo.md
 chromedriver
-.vscode/
-crawlers/crawlers/utils/nyt/parse_helpers.py
+.vscode
+scraped_data
+.gitignore

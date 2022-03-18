@@ -2,12 +2,6 @@ import os,sys
 from scrapy import crawler 
 from scrapy.crawler import CrawlerProcess
 from crawlers.crawlers.spiders import nytcook_spider
-#TODO 
-'''
-ALL CRAWLERS NEED TO BE IMPORTED BY NAME AND PASSED INTO PROCESS.CRAWL
-Example: 
-from crawlers.crawlers.spiders import nytcook_spider
-'''
 
 def main():
 

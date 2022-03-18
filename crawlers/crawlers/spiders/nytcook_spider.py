@@ -31,11 +31,6 @@ class TimesSpider(scrapy.Spider):
 
     name = "times"
 
-<<<<<<< HEAD
-    path = Path(__file__)
-    IMAGES_DIR_PATH = str(path.parents[2]) + "/data/images"
-
-=======
     def start_requests(self):
         self.start_url = "https://cooking.nytimes.com/search"
         self.recipes = {}
@@ -152,7 +147,6 @@ class TimesSpider(scrapy.Spider):
         # log all errback failures,
         # in case you want to do something special for some errors,
         # you may need the failure's type
->>>>>>> reimplement_crawler
 
         self.logger.error(repr(failure))
 
