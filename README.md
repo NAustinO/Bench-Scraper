@@ -126,7 +126,6 @@ Recipe aggregator and image parsing tool that exports JSON output to file and a 
         }
     ]
 }
-<<<<<<< HEAD
 ```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
@@ -150,7 +149,3 @@ Recipe aggregator and image parsing tool that exports JSON output to file and a 
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: hhttps://www.linkedin.com/in/nick-ozawa/
 [product-screenshot]: images/screenshot.png
-=======
-
-```
->>>>>>> 92d10c9df7bec12da7e2c2545dcd3fb24ff9bf87
